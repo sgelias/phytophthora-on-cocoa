@@ -19,7 +19,7 @@ options(width = 1200)
 
 ```{r message=FALSE, echo=FALSE, warning=FALSE, include=FALSE}
 
-source("packages.R")
+source("../packages.R")
 
 ```
 
@@ -29,7 +29,7 @@ source("packages.R")
 
 ```{r echo=FALSE, rows.print=25}
 
-dataset <- read_excel("data/temperature-essay.xlsx", sheet = "temperature")
+dataset <- read_excel("../data/temperature-essay.xlsx", sheet = "temperature")
 dataset$code = paste0(dataset$species, " | ",  dataset$strain)
 dataset
 
@@ -46,7 +46,7 @@ histogram1 <- ggplot(dataset, aes(average)) +
 
 ggsave(
   plot = histogram1,
-  filename = "editable-figures/temperature/Histogram_data.svg",
+  filename = "editable-figures/Histogram_data.svg",
   width = 8
 )
 
@@ -92,7 +92,7 @@ boxplot1 = dataset %>%
 
 ggsave(
   plot = boxplot1,
-  filename = "editable-figures/temperature/Boxplot_data_reduced.svg",
+  filename = "editable-figures/Boxplot_data_reduced.svg",
   width = 8
 )
 
@@ -138,7 +138,7 @@ boxplot2 = dataset %>%
 
 ggsave(
   plot = boxplot2,
-  filename = "editable-figures/temperature/Boxplot_data_full.svg",
+  filename = "editable-figures/Boxplot_data_full.svg",
   width = 8
 )
 
@@ -197,7 +197,7 @@ scatter1 = dataset_clear %>%
 
 ggsave(
   plot = scatter1,
-  filename = "editable-figures/temperature/Scatter_raw_data.svg",
+  filename = "editable-figures/Scatter_raw_data.svg",
   width = 14,
   height = 6
 )
@@ -358,7 +358,7 @@ histogram2 <- ggplot(lmer_h1_residuals, aes(.data[["Residuals"]])) +
 
 ggsave(
   plot = histogram2,
-  filename = "editable-figures/culture-media/Histogram_residuals_full_model.svg",
+  filename = "editable-figures/Histogram_residuals_full_model.svg",
   width = 8
 )
 
@@ -426,7 +426,7 @@ scatter2 = dataset_clear %>%
 
 ggsave(
   plot = scatter2,
-  filename = "editable-figures/temperature/Scatter_observed_and_predicted_full_model.svg",
+  filename = "editable-figures/Scatter_observed_and_predicted_full_model.svg",
   width = 14,
   height = 6
 )
@@ -558,7 +558,7 @@ histogram3 <- ggplot(lmer_h2_residuals, aes(.data[["Residuals"]])) +
 
 ggsave(
   plot = histogram3,
-  filename = "editable-figures/culture-media/Histogram_residuals_reduced_model.svg",
+  filename = "editable-figures/Histogram_residuals_reduced_model.svg",
   width = 8
 )
 
@@ -591,7 +591,7 @@ adjust2_plot <- ggplot(adjust, aes(x = average, y = pred)) +
 
 ggsave(
   plot = adjust2_plot,
-  filename = "editable-figures/temperature/Adjust_residuals_reduced_model.svg",
+  filename = "editable-figures/Adjust_residuals_reduced_model.svg",
   width = 3,
   height = 3
 )
@@ -710,7 +710,7 @@ scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)
 
 ggsave(
   plot = scatter3,
-  filename = "editable-figures/temperature/Scatter_predicted_reduced_model.svg",
+  filename = "editable-figures/Scatter_predicted_reduced_model.svg",
   height = 5,
   width = 7
 )

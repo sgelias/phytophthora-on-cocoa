@@ -19,7 +19,7 @@ options(width = 1100)
 
 ```{r message=FALSE, echo=FALSE, warning=FALSE, include=FALSE}
 
-source("packages.R")
+source("../packages.R")
 
 ```
 
@@ -30,7 +30,7 @@ source("packages.R")
 
 ```{r echo=FALSE, rows.print=25}
 
-dataset <- read_excel("data/culture-media-essay.xlsx", sheet = "culture-media")
+dataset <- read_excel("../data/culture-media-essay.xlsx", sheet = "culture-media")
 dataset$code = paste0(dataset$species, " | ",  dataset$strain)
 dataset[dataset$cultureMedia == "BDA", "cultureMedia"] = "PDA"
 
@@ -47,7 +47,7 @@ histogram1 <- ggplot(dataset, aes(average)) +
 
 ggsave(
   plot = histogram1,
-  filename = "editable-figures/culture-media/Histogram_data.svg",
+  filename = "editable-figures/Histogram_data.svg",
   width = 8
 )
 
@@ -95,7 +95,7 @@ scatter1 = dataset %>%
 
 ggsave(
   plot = scatter1,
-  filename = "editable-figures/culture-media/Scatter_raw_data.svg",
+  filename = "editable-figures/Scatter_raw_data.svg",
   width = 14,
   height = 6
 )
@@ -254,7 +254,7 @@ histogram2 <- ggplot(lmer_h1_residuals, aes(.data[["Residuals"]])) +
 
 ggsave(
   plot = histogram2,
-  filename = "editable-figures/culture-media/Histogram_residuals.svg",
+  filename = "editable-figures/Histogram_residuals.svg",
   width = 8
 )
 
@@ -323,7 +323,7 @@ scatter2 = dataset %>%
 
 ggsave(
   plot = scatter2,
-  filename = "editable-figures/culture-media/Scatter_observed_and_predicted.svg",
+  filename = "editable-figures/Scatter_observed_and_predicted.svg",
   width = 14,
   height = 6
 )
@@ -454,7 +454,7 @@ histogram3 <- ggplot(lmer_h2_residuals, aes(.data[["Residuals"]])) +
 
 ggsave(
   plot = histogram3,
-  filename = "editable-figures/culture-media/Histogram_residuals_reduced_model.svg",
+  filename = "editable-figures/Histogram_residuals_reduced_model.svg",
   width = 8
 )
 
@@ -487,7 +487,7 @@ adjust2_plot <- ggplot(adjust2, aes(x = average, y = pred)) +
 
 ggsave(
   plot = adjust2_plot,
-  filename = "editable-figures/culture-media/Adjust_residuals_reduced_model.svg",
+  filename = "editable-figures/Adjust_residuals_reduced_model.svg",
   width = 3,
   height = 3
 )
@@ -537,7 +537,7 @@ scatter3 = dataset %>%
 
 ggsave(
   plot = scatter3,
-  filename = "editable-figures/culture-media/Scatter_observed_and_predicted_reduced_model.svg",
+  filename = "editable-figures/Scatter_observed_and_predicted_reduced_model.svg",
   width = 10,
   height = 3
 )
@@ -645,7 +645,7 @@ barplot = comparisons_data %>%
 
 ggsave(
   plot = barplot,
-  filename = "editable-figures/culture-media/Barplot_observed_and_predicted_reduced_model.svg",
+  filename = "editable-figures/Barplot_observed_and_predicted_reduced_model.svg",
   width = 8,
   height = 4
 )
