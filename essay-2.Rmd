@@ -1,0 +1,722 @@
+---
+title: "Essay 2 - Temperature growth fitness"
+output:
+  html_document:
+    df_print: paged
+    number_sections: true
+    keep_md: yes
+    theme: cerulean
+    toc: yes
+---
+
+
+```{r set-options, echo=FALSE, cache=FALSE, include=FALSE}
+
+options(width = 1200)
+
+```
+
+
+```{r message=FALSE, echo=FALSE, warning=FALSE, include=FALSE}
+
+source("packages.R")
+
+```
+
+# Exploratory data analysis
+
+## Get raw data
+
+```{r echo=FALSE, rows.print=25}
+
+dataset <- read_excel("data/temperature-essay.xlsx", sheet = "temperature")
+dataset$code = paste0(dataset$species, " | ",  dataset$strain)
+dataset
+
+```
+
+## Plot data profile
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+histogram1 <- ggplot(dataset, aes(average)) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Average mycelial growth (cm)", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram1,
+  filename = "editable-figures/temperature/Histogram_data.svg",
+  width = 8
+)
+
+histogram1
+
+```
+
+## Plot observed data as a boxplot with reduced groups iteraction
+
+```{r echo=FALSE, fig.width=14, fig.height=6, message=FALSE, warning=FALSE}
+
+boxplot1 = dataset %>%
+  
+  # Reorder
+  mutate(species = fct_reorder(species, desc(species))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = temperatureCD, y = average, fill = temperatureCD, group = temperatureCD)) +
+  
+    # Define graph theme
+    theme_bw() +
+    theme(legend.position = c(0.9, 0.25)) + 
+    
+    # Set color scale for temperature gradient
+    scale_fill_gradient(low = "blue", high = "red") + 
+    
+    # Set point geometry
+    geom_boxplot() +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 5) +
+    
+    # Include base line for comparisons
+    geom_hline(yintercept = 40, linetype = "dashed", color = "grey50") +
+    
+    # Labels
+    labs(
+      x = "Growth temperature ºC", 
+      y = "Culture average diameter (mm)",
+      color = "Temperature ºC"
+    )
+
+
+ggsave(
+  plot = boxplot1,
+  filename = "editable-figures/temperature/Boxplot_data_reduced.svg",
+  width = 8
+)
+
+boxplot1
+
+```
+
+## Plot observed data as a boxplot with full groups iteraction
+
+```{r echo=FALSE, fig.width=18, fig.height=18, message=FALSE, warning=FALSE}
+
+boxplot2 = dataset %>%
+  
+  # Reorder
+  mutate(species = fct_reorder(species, desc(species))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = temperatureCD, y = average, fill = temperatureCD, group = temperatureCD)) +
+  
+    # Define graph theme
+    theme_bw() +
+      
+    # Set color scale for temperature gradient
+    scale_fill_gradient(low = "blue", high = "red") +
+    
+    # Set point geometry
+    geom_boxplot() +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code + day, ncol = 7) +
+    
+    # Include base line for comparisons
+    geom_hline(yintercept = 40, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 20, linetype = "dashed", color = "grey50") +
+    
+    # Labels
+    labs(
+      x = "Growth temperature ºC", 
+      y = "Culture average diameter (mm)",
+      color = "Temperature ºC"
+    )
+
+
+ggsave(
+  plot = boxplot2,
+  filename = "editable-figures/temperature/Boxplot_data_full.svg",
+  width = 8
+)
+
+boxplot2
+
+```
+
+## Clear dataset
+
+Remove temperatures 5, 35 and 40.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=15}
+
+dataset_clear <- dataset %>%
+   filter(temperatureCD > 5, temperatureCD < 35, !is.na(average))
+
+(dataset_clear <- rbind(
+  filter(dataset_clear, owner == "Jennifer"),
+  filter(dataset_clear, owner == "Danilo" & temperatureCD > 10)
+))
+
+```
+
+## Plot observed data as a scatterplot
+
+```{r echo=FALSE, fig.width=14, fig.height=6, message=FALSE, warning=FALSE}
+
+scatter1 = dataset_clear %>%
+  
+  # Reorder
+  mutate(species = fct_reorder(species, desc(species))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = temperatureCD, group = temperatureCD)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 40, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 4, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme(legend.position = c(0.9, 0.25)) + 
+    
+    # Set color scale for temperature gradient
+    scale_color_gradient(low = "blue", high = "red") +
+    
+    # Set point geometry
+    geom_point() +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 5) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter1,
+  filename = "editable-figures/temperature/Scatter_raw_data.svg",
+  width = 14,
+  height = 6
+)
+
+scatter1
+
+```
+
+# Comprobatory data analysis
+
+## Test if owner have some effect on essay
+
+```{r echo=FALSE}
+
+lmer_h0_owner <- lmer(
+  average ~ day : code : temperatureCategorical + (1 |  owner), 
+  data = dataset_clear, 
+  REML = TRUE
+)
+
+summary(lmer_h0_owner)
+
+```
+
+### How much the owner is important to explain about the total variance?
+
+```{r echo=FALSE}
+
+estimates1 <- as.data.frame(VarCorr(lmer_h0_owner))
+
+owner_variance = estimates1[1, "vcov"]
+residual_variance1 = estimates1[2, "vcov"]
+
+paste0(
+  "Variance: ", 
+  round(owner_variance / (owner_variance + residual_variance1) * 100, 10), " %"
+)
+
+```
+
+## Test if replicate have some effect on essay
+
+```{r echo=FALSE}
+
+lmer_h0_replicate <- lmer(
+  average ~ day : strain : temperatureCategorical + (1 |  replicate), 
+  data = dataset_clear, 
+  REML = TRUE
+)
+
+summary(lmer_h0_replicate)
+
+```
+
+### How much the replicate is important to explain about the total variance?
+
+```{r echo=FALSE}
+
+estimates2 <- as.data.frame(VarCorr(lmer_h0_replicate))
+
+replicate_variance = estimates2[1, "vcov"]
+residual_variance2 = estimates2[2, "vcov"]
+
+paste0(
+  "Variance: ", 
+  round(replicate_variance / (replicate_variance + residual_variance2) * 100, 10), " %"
+)
+
+```
+
+## Generate full model
+
+```{r echo=FALSE}
+
+# Good explanation of LMM in https://www.statsmodels.org/stable/mixed_linear.html
+
+lmer_h1 <- lmer(
+  average ~ day : code : temperatureCategorical + (1 | day / strain / temperatureCategorical), 
+  data = dataset_clear, 
+  REML = FALSE,
+)
+
+summary(lmer_h1)
+
+```
+
+### How much the target effects are important to explain about the total variance?
+
+```{r}
+
+estimates3 <- as.data.frame(VarCorr(lmer_h1))
+
+cultureMedia_strain_day_variance = estimates3[1, "vcov"]
+strain_day_variance = estimates3[2, "vcov"]
+day_variance = estimates3[3, "vcov"]
+residual_variance3 = estimates3[4, "vcov"]
+
+
+# cultureMedia_strain_day_variance
+paste0(
+  "Variance temperatureCategorical:(strain:day): ", 
+  round(cultureMedia_strain_day_variance / (cultureMedia_strain_day_variance + residual_variance3) * 100, 10), " %"
+)
+
+# strain_day_variance
+paste0(
+  "Variance strain:day: ", 
+  round(strain_day_variance / (strain_day_variance + residual_variance3) * 100, 10), " %"
+)
+
+# day_variance
+paste0(
+  "Variance day: ", 
+  round(day_variance / (day_variance + residual_variance3) * 100, 10), " %"
+)
+
+```
+
+### Plot final model adjust
+
+```{r echo=FALSE}
+
+plot(lmer_h1)
+
+qqnorm(resid(lmer_h1))
+qqline(resid(lmer_h1))
+
+```
+
+
+### Test significance of fixed effects
+
+```{r echo=FALSE}
+
+(aov <- anova(lmer_h1))
+
+```
+
+### Test significance of random effects
+
+```{r echo=FALSE}
+
+lmerTest::ranova(lmer_h1)
+
+```
+
+### Plot a residual histogram
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+lmer_h1_residuals = data.frame(resid(lmer_h1))
+colnames(lmer_h1_residuals) <- "Residuals"
+
+histogram2 <- ggplot(lmer_h1_residuals, aes(.data[["Residuals"]])) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Model residual", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram2,
+  filename = "editable-figures/culture-media/Histogram_residuals_full_model.svg",
+  width = 8
+)
+
+histogram2
+
+```
+
+### Get general adjust of full model
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+adjust <- cbind(dataset_clear, pred = predict(lmer_h1))
+
+ggplot(adjust, aes(x = average, y = pred)) +
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE, fullrange = TRUE) +
+  theme_classic() + 
+  scale_color_grey() +
+  annotate(
+    "text", 
+    label = paste0("Correlation: ", round(cor(adjust$pred, adjust$average), 3)), 
+    x = 10, 
+    y = 80
+  )
+
+```
+
+
+### Plot a scatter for observed vs predicted values
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=14, fig.height=6}
+
+scatter2 = dataset_clear %>%
+  
+  # Reorder
+  mutate(species = fct_reorder(species, desc(species))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = temperatureCD, group = temperatureCD)) +
+    
+    # Horizontal lines
+    geom_hline(yintercept = 20, linetype = "dashed", color = "grey70") +
+    geom_hline(yintercept = 60, linetype = "dashed", color = "grey70") +
+    geom_vline(xintercept = 4, linetype = "dashed", color = "grey70") +
+  
+    # Define graph theme
+    theme_bw() +
+    theme(legend.position = c(0.9, 0.25)) + 
+    
+    # Set color scale for temperature gradient
+    scale_color_gradient(low = "blue", high = "red") + 
+    
+    # Set point geometry
+    geom_point() +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 5) +
+    
+    # Include predict lines
+    geom_smooth(data = cbind(dataset_clear, pred = predict(lmer_h1)), aes(y = pred), size = 1) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter2,
+  filename = "editable-figures/temperature/Scatter_observed_and_predicted_full_model.svg",
+  width = 14,
+  height = 6
+)
+
+scatter2
+
+```
+
+### Generate pairwise comparisons
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25}
+
+# Generate pairwise comparisons
+lmeans_lmer_h1 <- lsmeans(
+  lmer_h1,
+  pairwise ~ day : code : temperatureCategorical
+)
+
+# Print comparisons
+data.frame(lmeans_lmer_h1$contrasts)
+
+```
+
+### Include alpha-numeric indicators of comparisons significance
+
+```{r echo=FALSE, rows.print=40, paged.print=FALSE}
+
+multicomp_with_letters <- cld(lmeans_lmer_h1$lsmeans)
+multicomp_with_letters
+
+```
+
+### Plot multiplicity comparisons
+
+```{r echo=FALSE, fig.width=12, fig.height=8}
+
+plot(
+  multicomp_with_letters, 
+  type = "response"
+)
+
+```
+
+## Generate reduced model
+
+```{r echo=FALSE}
+
+lmer_h2 <- lmer(
+  average ~ day : species : temperatureCategorical + (1 | day / species / temperatureCategorical), 
+  data = dataset_clear, 
+  REML = FALSE
+)
+
+summary(lmer_h2)
+
+```
+
+### How much the target effects are important to explain about the total variance?
+
+```{r echo=FALSE}
+
+estimates4 <- as.data.frame(VarCorr(lmer_h2))
+
+cultureMedia_strain_day_variance2 = estimates4[1, "vcov"]
+strain_day_variance2 = estimates4[2, "vcov"]
+day_variance2 = estimates4[3, "vcov"]
+residual_variance4 = estimates4[4, "vcov"]
+
+
+# cultureMedia_strain_day_variance
+paste0(
+  "Variance temperatureCategorical:(strain:day): ", 
+  round(cultureMedia_strain_day_variance2 / (cultureMedia_strain_day_variance2 + residual_variance4) * 100, 10), " %"
+)
+
+# strain_day_variance
+paste0(
+  "Variance strain:day: ", 
+  round(strain_day_variance2 / (strain_day_variance2 + residual_variance4) * 100, 10), " %"
+)
+
+# day_variance
+paste0(
+  "Variance day: ", 
+  round(day_variance2 / (day_variance2 + residual_variance4) * 100, 10), " %"
+)
+
+```
+
+### Plot final model adjust
+
+```{r echo=FALSE}
+
+plot(lmer_h2)
+
+qqnorm(resid(lmer_h2))
+qqline(resid(lmer_h2))
+
+```
+
+
+### Test significance of fixed effects
+
+```{r echo=FALSE}
+
+(aov <- anova(lmer_h2))
+
+```
+
+### Test significance of random effects
+
+```{r echo=FALSE}
+
+lmerTest::ranova(lmer_h2)
+
+```
+
+### Plot a residual histogram
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+lmer_h2_residuals = data.frame(resid(lmer_h2))
+colnames(lmer_h2_residuals) <- "Residuals"
+
+histogram3 <- ggplot(lmer_h2_residuals, aes(.data[["Residuals"]])) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Model residual", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram3,
+  filename = "editable-figures/culture-media/Histogram_residuals_reduced_model.svg",
+  width = 8
+)
+
+histogram3
+
+```
+
+### Get general adjust of reduced model
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+adjust <- cbind(dataset_clear, pred = predict(lmer_h2))
+
+adjust2_plot <- ggplot(adjust, aes(x = average, y = pred)) +
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE, fullrange = TRUE) +
+  theme_classic() + 
+  scale_color_grey() +
+  annotate(
+    "text", 
+    label = paste0("Correlation: ", round(cor(adjust$pred, adjust$average), 3)), 
+    x = 10, 
+    y = 80
+  ) +
+  
+  labs(
+    x = "Observed", 
+    y = "Predicted"
+  )
+
+ggsave(
+  plot = adjust2_plot,
+  filename = "editable-figures/temperature/Adjust_residuals_reduced_model.svg",
+  width = 3,
+  height = 3
+)
+
+adjust2_plot
+
+```
+
+### Generate pairwise comparisons
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25}
+
+# Generate pairwise comparisons
+lmeans_lmer_h2 <- lsmeans(
+  lmer_h2,
+  pairwise ~ day : species : temperatureCategorical
+)
+
+# Print comparisons
+data.frame(lmeans_lmer_h2$contrasts)
+
+```
+
+### Include alpha-numeric indicators of comparisons significance
+
+```{r echo=FALSE, rows.print=40, paged.print=FALSE}
+
+multicomp_with_letters2 <- cld(lmeans_lmer_h2$lsmeans)
+multicomp_with_letters2
+
+```
+
+### Plot multiplicity comparisons
+
+```{r echo=FALSE, fig.width=8, fig.height=4}
+
+plot(
+  multicomp_with_letters2, 
+  type = "response"
+)
+
+```
+
+
+### Plot a scatter for observed vs predicted values of reduced model
+
+```{r echo=FALSE, fig.height=6, fig.width=8}
+
+stringSanitizer <- function(x) {
+  for (item in 1:dim(x)[1]) {
+    x[item, ".group"] = gsub(" ", "", x[item, ".group"], fixed = TRUE)
+  }
+
+  return(x)
+}
+
+comparisons_data <- stringSanitizer(data.frame(multicomp_with_letters2))
+
+scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)) +
+  
+  # Set error bar
+  geom_errorbar(
+    aes(ymin = lower.CL, ymax = upper.CL, col = species), 
+    width = .1
+  ) +
+  
+  # Set lines
+  geom_line(
+    data = comparisons_data, 
+    mapping = aes(x = temperatureCategorical, y = lsmean, color = species, group = species), 
+    size = 0.5
+  ) +
+  
+  # Set points
+  geom_point(
+    data = comparisons_data, 
+    mapping = aes(x = temperatureCategorical, y = lsmean, color = species), 
+  cex = 3) +
+  
+  # Scale colors
+  scale_colour_manual(
+    name = "Taxa",
+    labels = c("Phytophthora citrophthora", "Phytophthora palmivora", "Phytophthora sp. nov."),
+    values = c("grey80", "grey60", "black")
+  ) +
+  
+  # Set theme
+  theme_bw() +
+  
+  # Configure aditionals for theme
+  theme(
+    legend.position = c(.01, .99),
+    legend.justification = c("left", "top"),
+    legend.box.just = "left",
+    legend.box.background = element_rect()
+  ) +
+  
+  # Set custom xaxis labels
+  scale_x_discrete(
+    breaks = c("T2","T3","T4", "T5", "T6"), 
+    labels = c(10, 15, 20, 25, 30)
+  ) + 
+  
+  # Add annotations
+  geom_text(
+    aes(y = lsmean, label = .group),
+    nudge_x = 0.1,
+    check_overlap = TRUE,
+    fontface = "bold"
+  ) + 
+  
+  # Set labels
+  labs(shape = "Taxon") +
+  xlab("Temperature (°C)") +
+  ylab("Mean growth on the fourth experiment day (mm)")
+
+ggsave(
+  plot = scatter3,
+  filename = "editable-figures/temperature/Scatter_predicted_reduced_model.svg",
+  height = 5,
+  width = 7
+)
+
+scatter3
+
+```
+
+
