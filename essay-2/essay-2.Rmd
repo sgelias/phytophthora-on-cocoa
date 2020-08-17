@@ -156,8 +156,8 @@ dataset_clear <- dataset %>%
    filter(temperatureCD > 5, temperatureCD < 35, !is.na(average))
 
 (dataset_clear <- rbind(
-  filter(dataset_clear, owner == "Jennifer"),
-  filter(dataset_clear, owner == "Danilo" & temperatureCD > 10)
+  filter(dataset_clear, essay == "Jennifer"),
+  filter(dataset_clear, essay == "Danilo" & temperatureCD > 10)
 ))
 
 ```
@@ -208,32 +208,32 @@ scatter1
 
 # Comprobatory data analysis
 
-## Test if owner have some effect on essay
+## Test if essay have some effect on essay
 
 ```{r echo=FALSE}
 
-lmer_h0_owner <- lmer(
-  average ~ day : code : temperatureCategorical + (1 |  owner), 
+lmer_h0_essay <- lmer(
+  average ~ day : code : temperatureCategorical + (1 |  essay), 
   data = dataset_clear, 
   REML = TRUE
 )
 
-summary(lmer_h0_owner)
+summary(lmer_h0_essay)
 
 ```
 
-### How much the owner is important to explain about the total variance?
+### How much the essay is important to explain about the total variance?
 
 ```{r echo=FALSE}
 
-estimates1 <- as.data.frame(VarCorr(lmer_h0_owner))
+estimates1 <- as.data.frame(VarCorr(lmer_h0_essay))
 
-owner_variance = estimates1[1, "vcov"]
+essay_variance = estimates1[1, "vcov"]
 residual_variance1 = estimates1[2, "vcov"]
 
 paste0(
   "Variance: ", 
-  round(owner_variance / (owner_variance + residual_variance1) * 100, 10), " %"
+  round(essay_variance / (essay_variance + residual_variance1) * 100, 10), " %"
 )
 
 ```
@@ -669,12 +669,13 @@ scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)
   geom_point(
     data = comparisons_data, 
     mapping = aes(x = temperatureCategorical, y = lsmean, color = species), 
-  cex = 3) +
+    cex = 3
+  ) +
   
   # Scale colors
   scale_colour_manual(
     name = "Taxa",
-    labels = c("Phytophthora citrophthora", "Phytophthora palmivora", "Phytophthora sp. nov."),
+    labels = c("Phytophthora citrophthora", "Phytophthora palmivora", "Phytophthora theobromicola sp. nov."),
     values = c("grey80", "grey60", "black")
   ) +
   
@@ -708,12 +709,12 @@ scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)
   xlab("Temperature (°C)") +
   ylab("Mean growth on the fourth experiment day (mm)")
 
-ggsave(
-  plot = scatter3,
-  filename = "editable-figures/Scatter_predicted_reduced_model.svg",
-  height = 5,
-  width = 7
-)
+# ggsave(
+#   plot = scatter3,
+#   filename = "editable-figures/Scatter_predicted_reduced_model.svg",
+#   height = 5,
+#   width = 7
+# )
 
 scatter3
 

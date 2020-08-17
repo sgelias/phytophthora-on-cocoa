@@ -107,32 +107,32 @@ scatter1
 
 # Comprobatory data analysis
 
-## Test if owner have some effect on essay
+## Test if essay have some effect on essay
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-lmer_h0_owner <- lmer(
-  average ~ day : strain : cultureMedia + (1 |  owner), 
+lmer_h0_essay <- lmer(
+  average ~ day : strain : cultureMedia + (1 |  essay), 
   data = dataset, 
   REML = TRUE
 )
 
-summary(lmer_h0_owner)
+summary(lmer_h0_essay)
 
 ```
 
-### How much the owner is important to explain about the total variance?
+### How much the essay is important to explain about the total variance?
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-estimates1 <- as.data.frame(VarCorr(lmer_h0_owner))
+estimates1 <- as.data.frame(VarCorr(lmer_h0_essay))
 
-owner_variance = estimates1[1, "vcov"]
+essay_variance = estimates1[1, "vcov"]
 residual_variance1 = estimates1[2, "vcov"]
 
 paste0(
   "Variance: ", 
-  round(owner_variance / (owner_variance + residual_variance1) * 100, 10), " %"
+  round(essay_variance / (essay_variance + residual_variance1) * 100, 10), " %"
 )
 
 ```
