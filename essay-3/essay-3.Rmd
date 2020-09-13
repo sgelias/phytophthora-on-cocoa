@@ -1,0 +1,667 @@
+---
+title: "Essay 1 - Culture media growth fitness"
+output:
+  html_document:
+    df_print: paged
+    number_sections: true
+    keep_md: yes
+    theme: cerulean
+    toc: yes
+---
+
+
+```{r set-options, echo=FALSE, cache=FALSE, include=FALSE}
+
+options(width = 1100)
+
+```
+
+
+```{r message=FALSE, echo=FALSE, warning=FALSE, include=FALSE}
+
+source("../packages.R")
+
+```
+
+# Exploratory data analysis
+
+## Get raw data
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, rows.print=25}
+
+dataset <- read_excel("../data/aggressiveness-essay.xlsx", sheet = "aggressiveness")
+dataset$code = paste0(dataset$species, " | ",  dataset$strain)
+dataset$inocPosByEssay = paste0(dataset$essay, " | ",  dataset$inocPos)
+dataset$inocPosByClone = paste0(dataset$clone, " | ",  dataset$inocPos)
+dataset
+
+```
+
+## Plot data profile
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+histogram1 <- ggplot(dataset, aes(average)) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Average mycelial growth (cm)", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram1,
+  filename = "editable-figures/Histogram_data.svg",
+  width = 8
+)
+
+histogram1
+
+```
+
+## Remove Control from raw dataset
+
+```{r echo=FALSE, rows.print=25}
+
+(dataset <- dataset %>%
+   filter(strain != "Control", !is.na(average)))
+
+```
+
+## Plot observed data as a scatterplot
+
+```{r echo=FALSE, fig.width=18, fig.height=24, message=FALSE, warning=FALSE}
+
+scatter1 = dataset %>%
+  
+  # Reorder
+  mutate(code = fct_reorder(code, desc(code))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = clone, group = clone, shape = inocPosByEssay)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 75, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 3, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme() + 
+    
+    # Set point geometry
+    geom_point(size = 3) +
+  
+    # Create a smooth line
+    geom_smooth(se = FALSE) +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code + replicate, ncol = 4) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter1,
+  filename = "editable-figures/Scatter_raw_data.svg",
+  width = 18,
+  height = 24
+)
+
+scatter1
+
+```
+
+## Clear dataset
+
+Remove values with sd close to zero.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25, fig.height=8}
+
+dataset_clean <- dataset %>%
+  group_by(essay, code, clone, inocPos, replicate) %>%
+  filter(strain != 2718, sd(average, na.rm = TRUE) > 0, n() == 5)
+
+(dataset_clean %>%
+  group_by(code, clone, essay, inocPos, replicate) %>%
+  summarise(
+    n = n(),
+    mean = mean(average),
+    sd = sd(average),
+    cv = (sd(average) / mean(average)) * 100,
+    lowerq = quantile(average)[2],
+    upperq = quantile(average)[4],
+    iqr = upperq - lowerq
+  ))
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25, fig.height=8}
+
+boxplot1 <- ggplot(
+  dataset_clean %>%
+  group_by(code, clone, essay, inocPos, replicate) %>%
+  summarise(
+    n = n(),
+    mean = mean(average),
+    sd = sd(average),
+    cv = (sd(average) / mean(average)) * 100,
+    lowerq = quantile(average)[2],
+    upperq = quantile(average)[4],
+    iqr = upperq - lowerq
+  ),
+  aes(x = interaction(code, essay), y = cv)
+) + 
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 55, hjust = 1))
+
+ggsave(
+  plot = boxplot1,
+  filename = "editable-figures/Boxplot_coefficient_of_variation_clean_data.svg",
+  width = 14,
+  height = 6
+)
+
+boxplot1
+
+```
+
+
+## Plot observed data as a scatterplot
+
+```{r echo=FALSE, fig.width=18, fig.height=24, message=FALSE, warning=FALSE}
+
+scatter2 = dataset_clean %>%
+  
+  # Reorder
+  mutate(code = fct_reorder(code, desc(code))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = inocPosByClone, group = inocPosByClone, shape = inocPosByEssay)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 75, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 3, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme() + 
+    
+    # Set point geometry
+    geom_point(size = 3) +
+  
+    # Create a smooth line
+    geom_smooth(se = FALSE) +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code + replicate, ncol = 4) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter2,
+  filename = "editable-figures/Scatter_observed_clean_data.svg",
+  width = 18,
+  height = 24
+)
+
+scatter2
+
+```
+
+# Comprobatory data analysis
+
+## Test if essay have some effect on essay
+
+```{r echo=FALSE}
+
+lmer_h0_essay <- lmer(
+  average ~ day : code : inocPosByClone + (1 |  essay), 
+  data = dataset_clean, 
+  REML = TRUE
+)
+
+summary(lmer_h0_essay)
+
+```
+
+### How much the essay is important to explain about the total variance?
+
+```{r echo=FALSE}
+
+estimates1 <- as.data.frame(VarCorr(lmer_h0_essay))
+
+essay_variance = estimates1[1, "vcov"]
+residual_variance1 = estimates1[2, "vcov"]
+
+paste0(
+  "Variance: ", 
+  round(essay_variance / (essay_variance + residual_variance1) * 100, 10), " %"
+)
+
+```
+
+## Test if replicate have some effect on essay
+
+```{r echo=FALSE}
+
+lmer_h0_replicate <- lmer(
+  average ~ day : code : inocPosByClone + (1 |  replicate), 
+  data = dataset_clean, 
+  REML = TRUE
+)
+
+summary(lmer_h0_replicate)
+
+```
+
+### How much the replicate is important to explain about the total variance?
+
+```{r echo=FALSE}
+
+estimates2 <- as.data.frame(VarCorr(lmer_h0_replicate))
+
+replicate_variance = estimates2[1, "vcov"]
+residual_variance2 = estimates2[2, "vcov"]
+
+paste0(
+  "Variance: ", 
+  round(replicate_variance / (replicate_variance + residual_variance2) * 100, 10), " %"
+)
+
+```
+
+## Generate full model
+
+```{r echo=FALSE}
+
+# Good explanation of LMM in https://www.statsmodels.org/stable/mixed_linear.html
+
+lmer_h1 <- lmer(
+  average ~ day : code : inocPosByClone + (1 | day : code : inocPosByClone), 
+  data = dataset_clean, 
+  REML = FALSE,
+)
+
+summary(lmer_h1)
+
+```
+
+### Plot final model adjust
+
+```{r echo=FALSE}
+
+plot(lmer_h1)
+
+qqnorm(resid(lmer_h1))
+qqline(resid(lmer_h1))
+
+```
+
+### Test significance of fixed effects
+
+```{r echo=FALSE}
+
+(aov <- anova(lmer_h1))
+
+```
+
+### Test significance of random effects
+
+```{r echo=FALSE}
+
+lmerTest::ranova(lmer_h1)
+
+```
+
+### Plot a residual histogram
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+lmer_h1_residuals = data.frame(resid(lmer_h1))
+colnames(lmer_h1_residuals) <- "Residuals"
+
+histogram2 <- ggplot(lmer_h1_residuals, aes(.data[["Residuals"]])) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Model residual", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram2,
+  filename = "editable-figures/Histogram_residuals_full_model.svg",
+  width = 8
+)
+
+histogram2
+
+```
+
+### Plot observed vs predicted data as a scatterplot
+
+```{r echo=FALSE, fig.width=18, fig.height=8, message=FALSE, warning=FALSE}
+
+scatter3 = dataset_clean %>%
+  
+  # Reorder
+  mutate(code = fct_reorder(code, desc(code))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = inocPosByClone, group = inocPosByClone)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 75, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 3, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme() + 
+    
+    # Set point geometry
+    geom_point(size = 3) +
+  
+    geom_line(aes(y = predict(lmer_h1)), size = 1) + 
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 4) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter3,
+  filename = "editable-figures/Scatter_clean_data_observed_vs_predicted.svg",
+  width = 14,
+  height = 6
+)
+
+scatter3
+
+```
+
+## Perform a second clean to dataset
+
+Remove values from the first essay.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25}
+
+(dataset_clean2 <- dataset_clean %>%
+  filter(essay == "Danilo"))
+
+```
+
+### Plot observed reduced data as a scatterplot
+
+```{r echo=FALSE, fig.width=18, fig.height=8, message=FALSE, warning=FALSE}
+
+scatter4 = dataset_clean2 %>%
+  
+  # Reorder
+  #mutate(code = fct_reorder(code, desc(code))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = inocPosByClone, group = inocPosByClone)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 75, linetype = "dashed", color = "grey50") +
+    geom_hline(yintercept = 25, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 3, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme() + 
+    
+    # Set point geometry
+    geom_point(size = 3) +
+  
+    # Create a smooth line
+    geom_smooth(se = FALSE) +
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 4) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter4,
+  filename = "editable-figures/Scatter_clean_data2_observed.svg",
+  width = 14,
+  height = 6
+)
+
+scatter4
+
+```
+
+## Generate reduced model
+
+```{r echo=FALSE}
+
+# Good explanation of LMM in https://www.statsmodels.org/stable/mixed_linear.html
+
+lmer_h2 <- lmer(
+  average ~ day : code : clone + (1 | day : code : clone), 
+  data = dataset_clean2, 
+  REML = FALSE,
+)
+
+summary(lmer_h2)
+
+```
+
+### Plot final model adjust
+
+```{r echo=FALSE}
+
+plot(lmer_h2)
+
+qqnorm(resid(lmer_h2))
+qqline(resid(lmer_h2))
+
+```
+
+### Test significance of fixed effects
+
+```{r echo=FALSE}
+
+(aov <- anova(lmer_h2))
+
+```
+
+### Test significance of random effects
+
+```{r echo=FALSE}
+
+lmerTest::ranova(lmer_h2)
+
+```
+
+### Plot a residual histogram
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+lmer_h2_residuals = data.frame(resid(lmer_h2))
+colnames(lmer_h2_residuals) <- "Residuals"
+
+histogram3 <- ggplot(lmer_h2_residuals, aes(.data[["Residuals"]])) +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = "Model residual", y = "Density") +
+  geom_density(col = 'red')
+
+ggsave(
+  plot = histogram3,
+  filename = "editable-figures/Histogram_residuals_reduced_model.svg",
+  width = 8
+)
+
+histogram3
+
+```
+
+## Plot observed vs predicted with reduced data as a scatterplot
+
+```{r echo=FALSE, fig.width=18, fig.height=8, message=FALSE, warning=FALSE}
+
+scatter5 = dataset_clean2 %>%
+  
+  # Reorder
+  #mutate(code = fct_reorder(code, desc(code))) %>%
+
+  # Generate a plot
+  ggplot(aes(x = day, y = average, color = clone, group = clone)) +
+  
+    # Include base line for comparisons
+    geom_hline(yintercept = 75, linetype = "dashed", color = "grey50") +
+    geom_hline(yintercept = 25, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = 3, linetype = "dashed", color = "grey50") +
+    
+    # Define graph theme
+    theme_bw() +
+    theme() + 
+    
+    # Set point geometry
+    geom_point(size = 3) +
+    
+    # Create a smooth line
+    geom_line(aes(y = predict(lmer_h2)), size = 1) + 
+    
+    # Wrap graph by isolate
+    facet_wrap(~ code, ncol = 4) +
+    
+    # Labels
+    labs(x = "Growth time (days)", y = "Culture average diameter (mm)")
+
+
+ggsave(
+  plot = scatter5,
+  filename = "editable-figures/Scatter_clean_data2_observed_vs_predicted.svg",
+  width = 14,
+  height = 6
+)
+
+scatter5
+
+```
+
+### Generate pairwise comparisons
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=25}
+
+# Generate pairwise comparisons
+lmeans_lmer_h2 <- lsmeans(
+  lmer_h2,
+  pairwise ~ day : code : clone
+)
+
+# Print comparisons
+data.frame(lmeans_lmer_h2$contrasts)
+
+```
+
+### Include alpha-numeric indicators of comparisons significance
+
+```{r echo=FALSE, rows.print=40, paged.print=FALSE}
+
+multicomp_with_letters <- cld(lmeans_lmer_h2$lsmeans, alpha = 0.01, Letters = c(LETTERS))
+multicomp_with_letters
+
+```
+
+### Plot multiplicity comparisons
+
+```{r echo=FALSE, fig.width=12, fig.height=8}
+
+plot(
+  multicomp_with_letters, 
+  type = "response"
+)
+
+```
+
+### Plot estimates
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=14, fig.height=6}
+
+stringSanitizer <- function(x) {
+  for (item in 1:dim(x)[1]) {
+    x[item, ".group"] = gsub(" ", "", x[item, ".group"], fixed = TRUE)
+  }
+
+  return(x)
+}
+
+comparisons_data <- stringSanitizer(data.frame(multicomp_with_letters))
+
+barplot = comparisons_data %>%
+  
+  #mutate(cultureMedia = fct_reorder(cultureMedia, lsmean)) %>%
+  
+  ggplot(aes(x = code, y = lsmean, group = clone, fill = code)) +
+    
+    # Set error bar
+    geom_errorbar(
+      aes(ymin = lower.CL, ymax = upper.CL), #, col = species
+      width = .1
+    ) +
+    
+    # Set lines
+    geom_bar(
+      stat = "identity", 
+      position = position_dodge(),
+      color = "grey30"
+      # data = comparisons_data, 
+      # color = comparisons_data$species, 
+      # group = comparisons_data$species
+    ) +
+    
+    scale_fill_grey() +
+    
+    # Set theme
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      # axis.ticks = element_blank()
+    ) +
+    
+    
+    # Grid graph for clone
+    facet_grid(. ~ clone) +
+    
+    # Include base line for comparisons
+    geom_hline(yintercept = 60, linetype = "dashed", color = "grey50") +
+    geom_hline(yintercept = 20, linetype = "dashed", color = "grey50") +
+    
+    # Add annotations
+    geom_text(
+      aes(x = code, y = upper.CL + 5, label = .group),
+      fontface = "bold"
+    ) +
+    
+    # Add annotations  
+    annotate("text", x = 2.5, y = -5, label = "P. palm.", cex = 4, colour = "grey20") +
+    geom_segment(aes(x = 1, xend = 4, y = -2, yend = -2), colour = "grey20") +
+    annotate("text", x = 6.5, y = -5, label = "P. theobr. sp. nov.", cex = 4, colour = "grey20") +
+    geom_segment(aes(x = 5, xend = 8, y = -2, yend = -2), colour = "grey20") +
+    scale_x_discrete(
+      #breaks = c(1,2,3,4,5,6,7,8), 
+      labels = as.character(c("1102","1158","906","920","1091","1151","1205","1285"))
+    ) +
+    
+    # Set labels
+    labs(
+      x = expression(paste(italic("Phytophthora"), " strain by Cocoa clone.")),
+      y = "Mean growth on the third experiment day (mm)",
+      color = "Culture media"
+    )
+
+ggsave(
+  plot = barplot,
+  filename = "editable-figures/Barplot_predicted_reduced_model.svg",
+  width = 14,
+  height = 6
+)
+
+barplot
+
+```
