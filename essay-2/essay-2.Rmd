@@ -635,6 +635,130 @@ plot(
 
 ```
 
+### Calculate and plot the mycelial growth speed index (MGSI)
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=30}
+
+mgsi_dataset <- rbind(
+  filter(dataset, essay == "Jennifer"),
+  filter(dataset, essay == "Danilo")
+)
+
+mgsi_dataset <- mgsi_dataset %>% 
+  group_by(day, temperatureCategorical, species, strain, replicate) %>%
+  summarize(
+    n = n(),
+    mean = mean(average)
+  )
+
+calculate_mgsi <- function(dataset) {
+  
+  mgsi = data.frame(matrix(ncol = 3))
+  colnames(mgsi) = c("temperatureCategorical", "species", "mgsi")
+  
+  for (species in unique(dataset$species)) {
+    species_dataset = mgsi_dataset[mgsi_dataset$species == species, ]
+    
+    for (temp in unique(species_dataset$temperatureCategorical)) {
+      temp_dataset = species_dataset[species_dataset$temperatureCategorical == temp, ]
+      
+      mean_growth = c()
+      
+      for (row in 1:dim(temp_dataset)[1]) {
+        current_day = temp_dataset[row, ]
+        
+        if (temp_dataset[row, "day"][[1]] > 1) {
+          previous_day = filter(
+            temp_dataset,
+            day == current_day$day - 1,
+            temperatureCategorical == current_day$temperatureCategorical,
+            species == current_day$species,
+            strain == current_day$strain,
+            replicate == current_day$replicate
+          )
+          
+          previous_day = previous_day[['mean']]
+        } else {
+          previous_day = 0
+        }
+        
+        mean_growth = c(
+          mean_growth, (current_day[['mean']] - previous_day)
+        )
+      }
+      
+      mgsi = rbind(
+        mgsi,
+        c(temp, species, (sum(na.omit(mean_growth)) / length(na.omit(mean_growth))))
+      )
+    }
+  }
+  
+  return(na.omit(mgsi))
+}
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rows.print=30}
+
+(cardinal_temperatures <- calculate_mgsi(mgsi_dataset))
+cardinal_temperatures$mgsi = as.numeric(cardinal_temperatures$mgsi)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+scatter3 <- ggplot(cardinal_temperatures, aes(x = temperatureCategorical, y = mgsi)) +
+  
+  # Set lines
+  geom_line(
+    data = cardinal_temperatures, 
+    mapping = aes(x = temperatureCategorical, y = mgsi, color = species, group = species), 
+    size = 0.5
+  ) +
+  
+  # Set points
+  geom_point(
+    data = cardinal_temperatures, 
+    mapping = aes(x = temperatureCategorical, y = mgsi, color = species), 
+    cex = 3
+  ) +
+  
+  # Scale colors
+  scale_colour_manual(
+    name = "Taxa",
+    labels = c("Phytophthora citrophthora", "Phytophthora palmivora", "Phytophthora theobromicola sp. nov."),
+    values = c("grey80", "grey60", "black")
+  ) +
+  
+  # Set theme
+  theme_bw() +
+  theme(legend.position = "none") +
+  
+  # Set custom xaxis labels
+  scale_x_discrete(
+    breaks = c("T1","T2","T3","T4", "T5", "T6", "T7", "T8"),
+    labels = c(5, 10, 15, 20, 25, 30, 35, 40)
+  ) +
+  
+  # Set labels
+  # labs(shape = "Taxon") +
+  ylab("Mycelial Growth Speed Index") +
+  xlab("Temperature (°C)")
+
+ggsave(
+  plot = scatter3,
+  filename = "editable-figures/Scatter_mycelial_growth_speed_index.svg",
+  height = 5,
+  width = 7
+)
+
+scatter3
+
+```
+
+
 
 ### Plot a scatter for observed vs predicted values of reduced model
 
@@ -650,7 +774,7 @@ stringSanitizer <- function(x) {
 
 comparisons_data <- stringSanitizer(data.frame(multicomp_with_letters2))
 
-scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)) +
+scatter4 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)) +
   
   # Set error bar
   geom_errorbar(
@@ -709,14 +833,14 @@ scatter3 <- ggplot(comparisons_data, aes(x = temperatureCategorical, y = lsmean)
   xlab("Temperature (°C)") +
   ylab("Mean growth on the fourth experiment day (mm)")
 
-# ggsave(
-#   plot = scatter3,
-#   filename = "editable-figures/Scatter_predicted_reduced_model.svg",
-#   height = 5,
-#   width = 7
-# )
+ggsave(
+  plot = scatter4,
+  filename = "editable-figures/Scatter_predicted_reduced_model.svg",
+  height = 5,
+  width = 7
+)
 
-scatter3
+scatter4
 
 ```
 
